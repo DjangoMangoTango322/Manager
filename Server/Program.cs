@@ -116,7 +116,7 @@ namespace Server
             try
             {
                 using var conn = new MySqlConnection(ConnectionString);
-                conn.Open();
+                conn.Open(); 
                 using var cmd = new MySqlCommand("SELECT is_blocked FROM users WHERE login = @login", conn);
                 cmd.Parameters.AddWithValue("@login", login);
                 var result = cmd.ExecuteScalar();
