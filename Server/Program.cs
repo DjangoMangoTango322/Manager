@@ -27,8 +27,18 @@ namespace Server
         }
         static void CheckDisconnectClient()
         {
+            int cleanupCounter = 0; 
+
             while (true)
             {
+                cleanupCounter++;
+
+                if (cleanupCounter >= 60)
+                {
+                    CleanupOldSessions();
+                    cleanupCounter = 0;
+                }
+
                 for (int i = AllClients.Count - 1; i >= 0; i--)
                 {
                     var client = AllClients[i];
@@ -332,6 +342,28 @@ namespace Server
                 File.WriteAllLines(Path, new[] { ipStr, ServerPort.ToString(), MaxClient.ToString(), Duration.ToString() });
             }
             Console.WriteLine("Use /config to change.");
+        }
+        static void CleanupOldSessions()
+        {
+            try
+            {
+                using var conn = new MySqlConnection(ConnectionString);
+                conn.Open();
+                string sql = "DELETE FROM active_sessions WHERE last_seen < NOW() - INTERVAL @interval SECOND";
+                using var cmd = new MySqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@interval", Duration + 300);
+                int deleted = cmd.ExecuteNonQuery();
+                if (deleted > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.WriteLine($"Cleanup: удалено {deleted} устаревших сессий из active_sessions");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Cleanup error: " + ex.Message);
+            }
         }
     }
 }
