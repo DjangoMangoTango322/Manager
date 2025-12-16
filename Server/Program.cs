@@ -361,7 +361,7 @@ namespace Server
             Console.WriteLine("/status             — показывает подключенных клиентов"); 
             Console.WriteLine("/help               — это помощь"); 
         }
-
+            
         static void OnSettings()
         {
             string Path = Directory.GetCurrentDirectory() + "/.config";
