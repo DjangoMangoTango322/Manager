@@ -59,6 +59,7 @@ namespace Server
 
         static void SetCommand()
         {
+
             Console.ForegroundColor = ConsoleColor.Cyan;
             string cmd = Console.ReadLine()?.Trim();
             if (string.IsNullOrEmpty(cmd)) return;
@@ -68,11 +69,16 @@ namespace Server
                 File.Delete(".config");
                 OnSettings();
             }
+            else if (cmd.StartsWith("/disconnect "))
+            {
+                string login = cmd.Substring(12).Trim();
+                DisconnectUser(login);
+            }
             else if (cmd.StartsWith("/block "))
             {
                 string login = cmd.Substring(7).Trim();
                 BlockUser(login, true);
-                DisconnectUserByLogin(login); 
+                DisconnectUserByLogin(login);
             }
             else if (cmd.StartsWith("/unblock "))
             {
@@ -94,7 +100,49 @@ namespace Server
                 }
             }
         }
+        static void DisconnectUser(string login)
+        {
+            if (string.IsNullOrEmpty(login)) return;
 
+            bool found = false;
+
+
+            for (int i = AllClients.Count - 1; i >= 0; i--)
+            {
+                if (GetLoginByToken(AllClients[i].Token) == login)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"[Server] Отключение пользователя: {login} (Token: {AllClients[i].Token})");
+                    AllClients.RemoveAt(i);
+                    found = true;
+                }
+            }
+
+
+            try
+            {
+                using var conn = new MySqlConnection(ConnectionString);
+                conn.Open();
+                using var cmd = new MySqlCommand("DELETE FROM active_sessions WHERE login = @login", conn);
+                cmd.Parameters.AddWithValue("@login", login);
+                int rows = cmd.ExecuteNonQuery();
+
+                if (rows > 0 || found)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"[Server] Пользователь '{login}' успешно отключен.");
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"[Server] Пользователь '{login}' не найден в активных сессиях.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Ошибка БД при отключении: " + ex.Message);
+            }
+        }
         static string GetLoginByToken(string token)
         {
             try
@@ -307,11 +355,11 @@ namespace Server
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Server commands:");
-            Console.WriteLine("/config        — reset settings");
-            Console.WriteLine("/block <login> — add user to blacklist (in DB)");
-            Console.WriteLine("/unblock <login> — remove from blacklist");
-            Console.WriteLine("/status        — show connected clients");
-            Console.WriteLine("/help          — this help");
+            Console.WriteLine("/config             — сменить сервер"); 
+            Console.WriteLine("/disconnect <login> — дисконект клиента"); 
+            Console.WriteLine("/block <login>      — добавление клиент в черный лист"); 
+            Console.WriteLine("/status             — показывает подключенных клиентов"); 
+            Console.WriteLine("/help               — это помощь"); 
         }
 
         static void OnSettings()

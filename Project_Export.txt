@@ -1,5 +1,5 @@
-﻿PROJECT EXPORT - 12/11/2025 22:05:06
-Project Path: D:\ОЩЕПА\02.02\Manager
+﻿PROJECT EXPORT - 12/16/2025 14:21:00
+Project Path: C:\Users\student-A502.PERMAVIAT\Desktop\asd\Manager
 Total Files: 6
 
 ================================================================================
@@ -377,8 +377,18 @@ namespace Server
         }
         static void CheckDisconnectClient()
         {
+            int cleanupCounter = 0; 
+
             while (true)
             {
+                cleanupCounter++;
+
+                if (cleanupCounter >= 60)
+                {
+                    CleanupOldSessions();
+                    cleanupCounter = 0;
+                }
+
                 for (int i = AllClients.Count - 1; i >= 0; i--)
                 {
                     var client = AllClients[i];
@@ -456,7 +466,7 @@ namespace Server
             try
             {
                 using var conn = new MySqlConnection(ConnectionString);
-                conn.Open();
+                conn.Open(); 
                 using var cmd = new MySqlCommand("SELECT is_blocked FROM users WHERE login = @login", conn);
                 cmd.Parameters.AddWithValue("@login", login);
                 var result = cmd.ExecuteScalar();
@@ -682,6 +692,28 @@ namespace Server
                 File.WriteAllLines(Path, new[] { ipStr, ServerPort.ToString(), MaxClient.ToString(), Duration.ToString() });
             }
             Console.WriteLine("Use /config to change.");
+        }
+        static void CleanupOldSessions()
+        {
+            try
+            {
+                using var conn = new MySqlConnection(ConnectionString);
+                conn.Open();
+                string sql = "DELETE FROM active_sessions WHERE last_seen < NOW() - INTERVAL @interval SECOND";
+                using var cmd = new MySqlCommand(sql, conn);
+                cmd.Parameters.AddWithValue("@interval", Duration + 300);
+                int deleted = cmd.ExecuteNonQuery();
+                if (deleted > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    Console.WriteLine($"Cleanup: удалено {deleted} устаревших сессий из active_sessions");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Cleanup error: " + ex.Message);
+            }
         }
     }
 }
